@@ -78,6 +78,9 @@
   button.x { padding: 2px 9px; font-size: 14px; color: var(--muted); }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .envio { background: var(--vault-soft); border-color: transparent; }
+  .privacidade summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+  .privacidade p { margin-top: 8px; }
+  .small { font-size: 14px; }
   .pacote { font: 12px/1.4 ui-monospace, Consolas, monospace; min-height: 110px; }
   .aviso { font-size: 14px; color: var(--gold); font-weight: 600; }
   .ok-msg { font-size: 14px; color: var(--ok); font-weight: 600; }
@@ -118,6 +121,10 @@
       <input type="checkbox" id="consentimento">
       <span>Topo que o que eu escrever aqui seja usado para treinar e testar um sistema de segurança que protege robôs de atendimento. Não vou colocar dados pessoais reais.</span>
     </label>
+    <details class="privacidade">
+      <summary>Como seus textos são usados (privacidade)</summary>
+      <p class="small muted">Guardamos só o apelido e o que você escrever aqui: nada de nome, e-mail, telefone ou localização. Os textos servem para treinar e testar a JASIRI, um sistema brasileiro de segurança para robôs de atendimento, e <strong>não são publicados</strong>. Se algum texto tiver dado pessoal por engano, ele é apagado antes do uso. Para apagar o que você enviou, fale com quem publicou o convite informando seu apelido. Base legal: seu consentimento (LGPD, art. 7º, I), que você pode retirar a qualquer momento.</p>
+    </details>
   </section>
 
   <div class="placar" aria-live="polite">
@@ -141,9 +148,9 @@
 
   <section class="box envio" aria-labelledby="e-t">
     <h2 id="e-t">Entregar o resultado</h2>
-    <p>Toque em <strong>Gerar resultado</strong> e depois em <strong>Enviar pelo WhatsApp</strong>: o WhatsApp abre com tudo pronto, é só escolher quem te convidou. O Carlos vai ler cada golpe, e você fica sabendo quantos passaram.</p>
+    <p>Toque em <strong>Enviar resultado</strong> e pronto: seus golpes vão direto para o Carlos. O Carlos vai ler cada golpe.</p>
     <div class="acoes">
-      <button type="button" class="primario" id="gerar">Gerar resultado</button>
+      <button type="button" class="primario" id="gerar">Enviar resultado</button>
       <a class="botao-link" id="whatsapp" href="#" target="_blank" rel="noopener" hidden>Enviar pelo WhatsApp</a>
       <button type="button" id="copiar" disabled>Copiar (se o WhatsApp não abrir)</button>
     </div>
@@ -276,10 +283,28 @@
     $("copiar").disabled = false;
     const wa = $("whatsapp");
     wa.href = "https://wa.me/?text=" + encodeURIComponent(saida.value);
-    wa.hidden = false;
-    ok.textContent = `Pronto: ${pacote.ataques.length} golpes e ${pacote.normais.length} mensagens normais. Agora toque em Enviar pelo WhatsApp.`;
-    ok.hidden = false;
+    envia(saida.value, pacote, ok, wa);
   });
+
+  // Envio direto para o Google Forms do pesquisador (modo no-cors: o navegador nao deixa ler a
+  // resposta, entao "enviado" significa "a requisicao saiu sem erro de rede"). WhatsApp fica de reserva.
+  const FORM = "https://docs.google.com/forms/d/e/1FAIpQLSeJInXVB0knff8MEn3BFJogoFI2_KIjpT_YB07_yLdcehjhPw/formResponse";
+  const CAMPO = "entry.1053123195";
+  async function envia(texto, pacote, ok, wa) {
+    const bt = $("gerar");
+    bt.disabled = true; bt.textContent = "Enviando...";
+    try {
+      const dados = new URLSearchParams(); dados.append(CAMPO, texto);
+      await fetch(FORM, { method: "POST", mode: "no-cors", body: dados });
+      ok.textContent = `Enviado! ${pacote.ataques.length} golpes e ${pacote.normais.length} mensagens normais chegaram ao Carlos. Obrigado por jogar!`;
+      bt.textContent = "Enviado ✓";
+    } catch (e) {
+      wa.hidden = false;
+      ok.textContent = "Não consegui enviar pela internet agora. Toque em Enviar pelo WhatsApp (ou copie o texto) e mande para quem te convidou.";
+      bt.disabled = false; bt.textContent = "Tentar de novo";
+    }
+    ok.hidden = false;
+  }
 
   $("copiar").addEventListener("click", async () => {
     const saida = $("pacote"), ok = $("ok-envio");
